@@ -40,6 +40,13 @@ Tests: `.venv/bin/python -m pytest -q`. Decisions and assumptions: `docs/ASSUMPT
 ```
 The summary's design (HTML/CSS template) is written by `gemma4:12b` (`ollama pull gemma4:12b`, ~8 GB); the content is filled in by code from verified data, so the model cannot invent numbers or citations. Without the model, a built-in design is used.
 
+## Design the queries (stage A)
+```
+./run_local.sh design-queries --question "What are the best methods to detect off-target effects of CRISPR-Cas9 editing?"
+./run_local.sh queries-table --topic 3          # every query with its decision and reason
+```
+Define the topic (subject / method / condition / exclusion terms) -> candidate queries -> pilot test (relevance of a random sample, new-paper share) -> keep or drop with a recorded reason -> override by hand if you want. Only kept queries are collected. Criteria: `query_design` in `config.yaml`.
+
 ## Start from a question
 ```
 ./run_local.sh from-question --question "What is the best sample preparation for cotinine in saliva by LC-MS/MS?"

@@ -15,9 +15,15 @@ def test_orx_quotes_phrases():
 def test_candidates_are_built_from_the_definition_only():
     c = qd.candidates(DEFN, with_mesh=False, with_llm=False)
     q = [x["query"] for x in c]
-    assert q[0] == '(alpha OR "alpha beta") AND (assay OR lc-ms) AND NOT (veterinary)'       # core
+    assert q[0] == '(alpha OR "alpha beta") AND (assay OR lc-ms)'                              # core(除外語は検索式に入れない)
+    assert not any("NOT" in x for x in q)
     assert any(x.startswith("(alpha) AND (assay)") for x in q)                                 # 最も狭い組
+    many = qd.candidates({**DEFN, "method_terms": [f"m{i}" for i in range(8)], "condition_terms": []}, with_mesh=False, with_llm=False)
+    assert [x["why"] for x in many].count("method: m7") == 1                                   # 8番目の手法語(具体的な手法名)も落とさない
     assert any('AND ("urine sample")' in x for x in q) and any("AND (serum)" in x for x in q)  # 条件ごと
+    assert any(x == '(alpha OR "alpha beta") AND (assay)' for x in q) and any(x == '(alpha OR "alpha beta") AND (lc-ms)' for x in q)  # 手法ごと
+    withx = qd.candidates(DEFN, with_mesh=False, with_llm=False, exclusions_in_queries=True)[0]["query"]
+    assert withx.endswith("AND NOT (veterinary)")                                                # 明示したときだけ
     assert all(x["origin"] == "seed" and x["why"] for x in c)
     assert "nicotin" not in json.dumps(c).lower()                                              # 特定トピックの語が混ざらない
 
@@ -110,3 +116,37 @@ def test_gate_skips_existing_and_returns_only_kept(monkeypatch):
     kept = qd.gate(conn, 1, ["old", "new good", "new bad"], judge_fn=judge)
     assert kept == ["new good"]
     assert conn.execute("SELECT COUNT(*) FROM queries WHERE term='old'").fetchone()[0] == 1   # 既存は重複して入れない
+
+
+def test_design_returns_rows_when_some_candidates_are_dropped_early(monkeypatch):
+    # 回帰: 件数で早く落とした式(too narrow/broad)には novelty が無く、以前は KeyError で落ちた
+    conn = init_db(":memory:")
+    conn.execute("INSERT INTO topics(id, name, criteria) VALUES (1,'T','c')")
+    _fake_pubmed(monkeypatch, {"tiny": ["1"], "good": [str(i) for i in range(1, 21)]})
+    table = qd.design(conn, 1, [{"query": "tiny", "origin": "seed", "why": ""}, {"query": "good", "origin": "seed", "why": ""}], judge_fn=lambda p: "include")
+    assert {r["query"]: r["status"] for r in table} == {"tiny": "dropped", "good": "kept"}
+    assert next(r for r in table if r["query"] == "tiny")["novelty"] is None
+
+
+def test_design_retries_with_relaxed_queries_when_nothing_is_kept(monkeypatch):
+    # 全候補が落ちたら、緩めた式で一度だけ再挑戦する
+    conn = init_db(":memory:")
+    d = {**DEFN, "exclude_terms": []}
+    conn.execute("INSERT INTO topics(id, name, criteria, description) VALUES (1,'T','c',?)", (json.dumps(d),))
+    universe = {"tiny": ["1"]}                                         # 最初の候補は too narrow
+    for c in qd.relaxed_candidates(d):
+        universe[c["query"]] = [str(i) for i in range(1, 21)]          # 緩めた式は十分な件数
+    _fake_pubmed(monkeypatch, universe)
+    monkeypatch.setattr(qd, "candidates", lambda defn, **kw: [{"query": "tiny", "origin": "seed", "why": "w"}])
+    table = qd.design(conn, 1, judge_fn=lambda p: "include")
+    assert [r["status"] for r in table][0] == "dropped"
+    assert any(r["status"] == "kept" and r["why"].startswith("relaxed") for r in table)
+    assert conn.execute("SELECT COUNT(*) FROM queries WHERE topic_id=1 AND status='kept'").fetchone()[0] >= 1
+
+
+def test_exclude_terms_go_into_the_criteria_not_the_queries(monkeypatch):
+    conn = init_db(":memory:")
+    monkeypatch.setattr(qd.stages, "setup_topic", lambda c, n, s, crit=None, pf=None: c.execute("UPDATE topics SET criteria='INCLUDE x' WHERE name=?", (n,)))
+    tid = qd.new_topic(conn, DEFN)
+    crit = conn.execute("SELECT criteria FROM topics WHERE id=?", (tid,)).fetchone()[0]
+    assert crit.endswith("EXCLUDE also papers that are mainly about: veterinary.")
