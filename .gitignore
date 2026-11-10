@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.ipynb_checkpoints/
+_nb_test.ipynb
+# 取得・生成したデータ(再構築できる。論文の本文・要旨を含むため公開しない)
+data/
+searches/
+logs/

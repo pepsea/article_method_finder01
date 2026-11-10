@@ -1,0 +1,23 @@
+# モデル名はここだけで管理する(差し替え時はこのファイルを編集)
+# 商用利用ライセンスは docs/LICENSES.md を参照(未確認のものは「未確認」と記載)
+ollama_url: http://localhost:11434   # ローカル実行の既定。Dockerでは環境変数 OLLAMA_URL で上書きされる
+
+models:
+  llm: qwen3:14b          # 24GB RAM で動作。軽量にしたい場合は qwen3:8b
+  embedding: bge-m3
+  reranker: null          # M5 で導入するまで未設定
+
+screening_model: qwen3:8b       # 大量判定用(14bと40件で39件一致、速度は約2倍)。変更はここで
+design_model: gemma4:12b         # サマリーレポートのデザイン(HTML/CSSの雛形)を作るモデル。内容は作らせない
+extraction_model: qwen3:8b      # 構造化抽出用(速度優先。精度が不足なら14bへ)
+search_end_date: "2026/11/09"   # 検索の日付上限。固定すると再実行で同じIDになる(S4)
+query_design:                   # 検索語の設計・決定の基準(ステージA)
+  pilot_n: 12                   # 各検索語の結果から無作為に取り、LLMで関連を判定する論文数
+  min_precision: 0.3            # 試験サンプルの関連率がこれ未満の検索語は使わない
+  min_novelty: 0.2              # 既に選んだ検索語がカバーしていない論文の割合がこれ未満なら重複として使わない
+  max_total_papers: 4000        # 選んだ検索語が集める論文の合計の上限
+  min_hits: 5                   # PubMedの件数がこれ未満は狭すぎる
+  max_candidates: 12            # 評価する候補の最大数
+max_hits_per_query: 3000        # これを超える広すぎる検索語は取り込まない
+
+prompt_version: v1      # LLM 呼び出しごとに runs テーブルへ記録する

@@ -1,0 +1,151 @@
+{
+  "schema_version": "t2-1",
+  "context": "a ubiquitinomics method",
+  "entity_regex": "ubiquitin|ubiquitination|ubiquitinome|ubiquitinated|ubiquitin-like|deubiquitination|ubiquitin proteasome|ubiquitin pathway",
+  "title_priority_regex": "analysis|characteriz|profil|mapping|detection|quantif|validat|method|approach|pipeline|protocol|algorithm|benchmark|comparison|study|investigat|screen|profiling|determination|identification|discovery|mapping|characterization|analysis of|detection of|profiling of|study of|investigation of|screening of|characterization of|mapping of|determination of|quantification of|identification of|discovery of",
+  "roles": {
+    "matrix": {
+      "name": "sample_type",
+      "label": "Sample type",
+      "desc": "sample type analysed (e.g. cell line, tissue, organ, organism, dataset, proteome)"
+    },
+    "analytes": {
+      "name": "analytes",
+      "label": "Analytes",
+      "desc": "target entities quantified or identified (e.g. ubiquitin, ubiquitinated proteins, ubiquitin-like proteins)"
+    },
+    "sample_preparation": {
+      "name": "sample_preparation",
+      "label": "Sample preparation",
+      "desc": "method used to prepare the sample for analysis (e.g. lysis, digestion, enrichment, fractionation)"
+    },
+    "chromatography_column": {
+      "name": "platform_instrument",
+      "label": "Platform/Instrument",
+      "desc": "instrument, platform, or algorithm used (e.g. mass spectrometer, proteomics software, enrichment kit)"
+    },
+    "internal_standard": {
+      "name": "reference_control",
+      "label": "Reference/Control",
+      "desc": "reference, control, or normalization method used (e.g. spike-in, control sample, normalization strategy)"
+    },
+    "lloq": {
+      "name": "sensitivity",
+      "label": "Sensitivity",
+      "desc": "sensitivity metric (e.g. detection limit, quantification limit, coverage, completeness) with its unit, as written"
+    },
+    "validation_type": {
+      "name": "validation_type",
+      "label": "Validation",
+      "desc": "one of: none, internal, independent, experimental (internal = validation by the authors' own samples/guidelines)"
+    }
+  },
+  "condition_classes": [
+    [
+      "cell line",
+      "cell|cell line|cell culture"
+    ],
+    [
+      "tissue",
+      "tissue|organ|liver|brain|lung|kidney|heart|spleen"
+    ],
+    [
+      "organism",
+      "organism|mouse|rat|human|yeast|fly|worm|plant"
+    ],
+    [
+      "dataset",
+      "dataset|proteome|transcriptome|genome|epigenome|metabolome"
+    ],
+    [
+      "proteome",
+      "proteome|protein|peptide|ubiquitinated protein"
+    ],
+    [
+      "organism-wide",
+      "organism-wide|global|systematic|comprehensive|pan-"
+    ]
+  ],
+  "method_classes": [
+    [
+      "immunoprecipitation (IP)",
+      "immunoprecipit|ip|affinity purification|antibody enrichment|ubiquitin antibody"
+    ],
+    [
+      "ubiquitin enrichment",
+      "ubiquitin enrichment|ubiquitin pull-down|ubiquitin affinity|ubiquitin tag|ubiquitin bait"
+    ],
+    [
+      "fractionation",
+      "fractionation|size exclusion|ion exchange|hydrophobic interaction|affinity|chromatography|ultrafiltration"
+    ],
+    [
+      "digestion",
+      "digest|trypsin|chymotrypsin|pepsin|protease|in-solution digestion|in-gel digestion"
+    ],
+    [
+      "label-free",
+      "label-free|unlabelled|no isotope labelling|no stable isotope labelling"
+    ],
+    [
+      "isobaric tagging",
+      "tmt|tandem mass tag|isobaric tag|iTRAQ|isobaric reagent"
+    ],
+    [
+      "stable isotope labelling",
+      "stable isotope|sILAC|SILAC|heavy isotope|isotope labelling"
+    ],
+    [
+      "direct analysis",
+      "direct analysis|no enrichment|no fractionation|no digestion|no labelling"
+    ]
+  ],
+  "detail_a_classes": [
+    [
+      "LC-MS/MS",
+      "lc-?ms\\/ms|tandem mass spectrometry|ms\\/ms|mass spectrometry"
+    ],
+    [
+      "proteomics software",
+      "maxquant|proteome discoverer|skyline|peptide shaker|msfragger|xtandem|omssa|crux|pfind|prowl|pqp|pqp|pqp"
+    ],
+    [
+      "ubiquitin enrichment kit",
+      "ubiquitin enrichment|ubiquitin affinity kit|ubiquitin pull-down kit|ubiquitin antibody kit"
+    ],
+    [
+      "fractionation kit",
+      "fractionation|size exclusion|ion exchange|hydrophobic interaction|affinity|chromatography|ultrafiltration|kit"
+    ],
+    [
+      "digestion kit",
+      "digest|trypsin|chymotrypsin|pepsin|protease|in-solution digestion|in-gel digestion|kit"
+    ],
+    [
+      "isobaric tagging kit",
+      "tmt|tandem mass tag|isobaric tag|iTRAQ|isobaric reagent|kit"
+    ],
+    [
+      "stable isotope labelling kit",
+      "stable isotope|sILAC|SILAC|heavy isotope|isotope labelling|kit"
+    ]
+  ],
+  "detail_a_generic": [
+    "other",
+    "other platform"
+  ],
+  "detail_b_specific_regex": "d\\d|13c|15n|\\([^)]*d\\d",
+  "performance_lower_is_better": false,
+  "gap_terms": {
+    "cell line": "cell line",
+    "tissue": "tissue",
+    "organism": "organism",
+    "dataset": "dataset",
+    "proteome": "proteome",
+    "organism-wide": "organism-wide"
+  },
+  "gap_query_template": "ubiquitin AND (proteomics OR ubiquitinomics OR ubiquitination) AND {terms}",
+  "entity_query_template": "\"{entity}\" AND (proteomics OR ubiquitinomics OR ubiquitination)",
+  "keyword_hint": "related analytes (e.g. ubiquitin, ubiquitinated proteins), matrices (cell line, tissue, organism, dataset), and specific method names; each query must combine the analyte and the analytical method",
+  "sanity": null
+}

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Search history</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: -apple-system, Helvetica, Arial, sans-serif; margin: 24px; color: #222; background: #fafafa; }
+  h1 { font-size: 20px; } h2 { font-size: 16px; margin-top: 28px; }
+  table { border-collapse: collapse; width: 100%; background: #fff; font-size: 13px; }
+  th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #eee; }
+  .btn { padding: 3px 8px; border: 1px solid #888; background: #fff; cursor: pointer; border-radius: 3px; font-size: 12px; }
+  .include { background: #e3f1e3; } .exclude { background: #f6e6e6; } .unsure { background: #fff3d6; }
+  .muted { color: #777; font-size: 12px; } a { color: #1a5fb4; }
+  input, select { padding: 4px; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>Search history</h1>
+<p class="muted">Each search keeps its own folder under <code>searches/</code>. Click "Save snapshot" to store the current results as a dated folder.</p>
+<div id="history"></div>
+<div id="detail"></div>
+
+<script>
+// 履歴(検索ごとの件数とスナップショット一覧)を読み込んで表示する
+async function loadHistory() {
+  const res = await fetch('/api/searches');
+  const items = await res.json();
+  let h = '<table><tr><th>ID</th><th>Search</th><th>Collected</th><th>Include</th><th>Unsure</th><th>Exclude</th><th>Not screened</th><th>Saved snapshots</th><th></th></tr>';
+  for (const s of items) {
+    const c = s.counts;
+    const snaps = s.snapshots.map(t =>
+      `<a href="/searches/${s.folder}/${t}/papers.csv">${t}</a> (<a href="/searches/${s.folder}/${t}/included.csv">included</a>, <a href="/searches/${s.folder}/${t}/summary.json">summary</a>, <a href="/searches/${s.folder}/${t}/summary.html">summary</a>, <a href="/searches/${s.folder}/${t}/report.html">report</a>)`
+    ).join('<br>') || '<span class="muted">none yet</span>';
+    h += `<tr><td>${s.id}</td><td>${s.name}</td><td>${c.collected - c.duplicates_merged}</td>
+      <td>${c.include}</td><td>${c.unsure}</td><td>${c.exclude}</td><td>${c.not_screened}</td><td>${snaps}</td>
+      <td><button class="btn" onclick="openSearch(${s.id})">View results</button>
+          <button class="btn" onclick="saveSnap(${s.id})">Save snapshot</button></td></tr>`;
+  }
+  document.getElementById('history').innerHTML = h + '</table>';
+}
+
+// 現在の結果を日時フォルダに保存する
+async function saveSnap(id) {
+  await fetch(`/api/searches/${id}/export`, { method: 'POST' });
+  loadHistory();
+}
+
+// 1つの検索の論文一覧(ラベル・題名で絞り込み、判定の上書きが可能)
+let current = null;
+async function openSearch(id) {
+  current = id;
+  document.getElementById('detail').innerHTML = `
+    <h2>Results of search ${id}</h2>
+    <label>Label <select id="f_label" onchange="loadPapers()">
+      <option value="">all</option><option>include</option><option>unsure</option><option>exclude</option><option value="none">not screened</option></select></label>
+    <label>Title contains <input id="f_q" oninput="loadPapers()"></label>
+    <span id="total" class="muted"></span><div id="papers"></div>`;
+  loadPapers();
+}
+
+async function loadPapers() {
+  const label = document.getElementById('f_label').value, q = document.getElementById('f_q').value;
+  const res = await fetch(`/api/searches/${current}/papers?label=${encodeURIComponent(label)}&q=${encodeURIComponent(q)}&limit=300`);
+  const d = await res.json();
+  document.getElementById('total').textContent = ` ${d.total} papers (showing up to 300)`;
+  let h = '<table><tr><th>PMID</th><th>Year</th><th>Title</th><th>Label</th><th>By</th><th>Reason</th><th>Override</th></tr>';
+  for (const p of d.papers) {
+    h += `<tr class="${p.label || ''}"><td><a href="${p.url}" target="_blank">${p.pmid}</a></td><td>${p.year || ''}</td>
+      <td>${p.title || ''}</td><td>${p.label || '-'}</td><td>${p.reviewer || ''}</td><td>${p.reason || ''}</td>
+      <td><button class="btn" onclick="ov(${p.paper_id},'include')">include</button>
+          <button class="btn" onclick="ov(${p.paper_id},'exclude')">exclude</button></td></tr>`;
+  }
+  document.getElementById('papers').innerHTML = h + '</table>';
+}
+
+// 人の判断で判定を上書きする
+async function ov(paper_id, label) {
+  await fetch('/api/screening/override', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paper_id, topic_id: current, label, reason: 'manual override' }) });
+  loadPapers(); loadHistory();
+}
+loadHistory();
+</script>
+</body>
+</html>

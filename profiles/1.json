@@ -1,0 +1,178 @@
+{
+  "schema_version": "1.1",
+  "context": "an analytical (LC-MS/MS) method",
+  "entity_regex": "nicotin|cotinin|anabasin|anatabin",
+  "title_priority_regex": "determination|quantif|validat|method|assay|simultaneous|detection|analysis of|measurement|development|approach|algorithm|pipeline|protocol|benchmark|comparison",
+  "roles": {
+    "matrix": {
+      "name": "matrix",
+      "label": "Sample type",
+      "desc": "sample type analysed (e.g. urine, plasma, saliva, hair, e-liquid, wastewater)"
+    },
+    "analytes": {
+      "name": "analytes",
+      "label": "Analytes",
+      "desc": "compounds quantified (e.g. nicotine, cotinine)"
+    },
+    "sample_preparation": {
+      "name": "sample_preparation",
+      "label": "Sample preparation",
+      "desc": "how the sample was prepared/extracted before injection"
+    },
+    "chromatography_column": {
+      "name": "chromatography_column",
+      "label": "Column",
+      "desc": "LC column used (type/brand/dimensions)"
+    },
+    "internal_standard": {
+      "name": "internal_standard",
+      "label": "Internal standard",
+      "desc": "internal standard(s) used"
+    },
+    "lloq": {
+      "name": "lloq",
+      "label": "LLOQ",
+      "desc": "lower limit of quantification (or detection) with its unit, as written"
+    },
+    "validation_type": {
+      "name": "validation_type",
+      "label": "Validation",
+      "desc": "one of: none, internal, independent, experimental (internal = validation by the authors' own samples/guidelines)"
+    }
+  },
+  "condition_classes": [
+    [
+      "urine",
+      "urin"
+    ],
+    [
+      "plasma/serum/blood",
+      "plasma|serum|whole blood|blood"
+    ],
+    [
+      "saliva/oral fluid",
+      "saliva|oral fluid"
+    ],
+    [
+      "hair",
+      "hair"
+    ],
+    [
+      "e-liquid/aerosol",
+      "e-liquid|e-cig|vap|aerosol|liquid"
+    ],
+    [
+      "tobacco/smoke",
+      "tobacco|cigarette|smoke"
+    ],
+    [
+      "wastewater",
+      "wastewater|sewage|sewer"
+    ],
+    [
+      "tissue",
+      "tissue|brain|lung|liver|placenta|cell|organ"
+    ],
+    [
+      "breast milk",
+      "milk"
+    ],
+    [
+      "dried blood spot",
+      "dried blood|dbs"
+    ]
+  ],
+  "method_classes": [
+    [
+      "QuEChERS",
+      "quechers|quick, easy, cheap"
+    ],
+    [
+      "supported liquid extraction",
+      "supported liquid|\\bSLE\\b"
+    ],
+    [
+      "microextraction (SPME)",
+      "microextraction|\\bSPME\\b"
+    ],
+    [
+      "solid-phase extraction",
+      "solid.phase|\\bSPE\\b|cartridge|oasis|on-?line|column.switching|turbulent"
+    ],
+    [
+      "liquid-liquid extraction",
+      "liquid.liquid|\\bLLE\\b|extracted with|extraction with|dichloromethane|ethyl acetate|\\bMTBE\\b|hexane|\\bether\\b"
+    ],
+    [
+      "protein precipitation",
+      "precipitat|deproteini|znso4|zinc sulfate|acetonitrile (was )?added|centrifugation of .{0,20}with (acetonitrile|methanol)|diluted with .{0,25}(acetonitrile|methanol)|cold acetone"
+    ],
+    [
+      "dilute-and-shoot",
+      "dilut(ion|ed)|direct(ly)? inject|minimal sample prep|simple (dilution|prep)"
+    ],
+    [
+      "solvent/ultrasound extraction",
+      "sonicat|incubat|ultrasound|microwave|\\bMAE\\b|pressurized|\\bPLE\\b|soaked|one-step extraction|single-step extraction|extract"
+    ],
+    [
+      "enzymatic hydrolysis",
+      "enzym|subtilisin|hydrolys"
+    ]
+  ],
+  "detail_a_classes": [
+    [
+      "C18",
+      "c\\(?18\\)?|\\bODS\\b|HSS T3|octadecyl"
+    ],
+    [
+      "HILIC",
+      "hilic|hydrophilic interaction|\\bamide\\b"
+    ],
+    [
+      "biphenyl/phenyl/PFP",
+      "biphenyl|phenyl|pfp|pentafluoro|\\bF5\\b"
+    ],
+    [
+      "C8",
+      "\\bc8\\b"
+    ],
+    [
+      "porous graphitic carbon",
+      "graphitic|hypercarb|\\bPGC\\b"
+    ],
+    [
+      "reversed-phase (type not stated)",
+      "reverse.?d?.?phase|\\bRP\\b"
+    ]
+  ],
+  "detail_a_generic": [
+    "other",
+    "reversed-phase (type not stated)"
+  ],
+  "detail_b_specific_regex": "[a-z]+-?d\\s?\\d|13c|15n|\\([^)]*d\\d",
+  "performance_lower_is_better": true,
+  "gap_terms": {
+    "urine": "urine",
+    "plasma/serum/blood": "(plasma OR serum OR blood)",
+    "saliva/oral fluid": "(saliva OR oral fluid)",
+    "hair": "hair",
+    "e-liquid/aerosol": "(e-liquid OR e-cigarette liquid)",
+    "wastewater": "wastewater",
+    "tissue": "(tissue OR brain)",
+    "breast milk": "breast milk",
+    "dried blood spot": "dried blood spot"
+  },
+  "gap_query_template": "nicotine AND (LC-MS/MS OR tandem mass spectrometry) AND {terms}",
+  "entity_query_template": "\"{entity}\" AND (LC-MS/MS OR tandem mass spectrometry)",
+  "keyword_hint": "related analytes (e.g. metabolites), matrices (urine, plasma, e-liquid, tobacco), and specific method names; each query must combine the analyte and the analytical method",
+  "sanity": {
+    "label": "isotope-labelled internal standard for urine/plasma",
+    "field": "internal_standard",
+    "regex": "d\\d|13c|15n|deuter|labell?ed|isotop",
+    "conditions": [
+      "urine",
+      "plasma/serum/blood"
+    ]
+  }
+}

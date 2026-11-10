@@ -1,0 +1,21 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      # コード・データ・設定をホストと共有(DBと生データを消さないため)
+      - ./app:/srv/app
+      - ./data:/srv/data
+      - ./tests:/srv/tests
+      - ./web:/srv/web
+      - ./docs:/srv/docs
+      - ./searches:/srv/searches
+      - ./config.yaml:/srv/config.yaml
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - OLLAMA_URL=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
