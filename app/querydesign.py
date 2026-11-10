@@ -15,7 +15,7 @@ import httpx
 from app import profile as prof, pubmed, stages
 from app.config import load_config
 
-DEFAULTS = {"pilot_n": 12, "min_precision": 0.3, "min_novelty": 0.2, "max_total_papers": 4000, "min_hits": 5, "max_candidates": 12}
+DEFAULTS = {"pilot_n": 12, "min_precision": 0.3, "min_novelty": 0.2, "max_total_papers": 4000, "min_hits": 5, "max_candidates": 20}
 
 
 def settings():
@@ -60,17 +60,26 @@ def orx(terms):
     return "(" + " OR ".join(f'"{t}"' if re.search(r"[\s/]", t) else t for t in terms) + ")"
 
 
-def candidates(defn, with_mesh=True, with_llm=True):
-    # 定義から検索式の候補を作る: 全語の組(core)・最も狭い組・条件ごとの式・MeSH・LLMの自由な式。origin と理由を付ける
+def candidates(defn, with_mesh=True, with_llm=True, exclusions_in_queries=False):
+    # 定義から検索式の候補を作る: 全語の組(core)・最も狭い組・手法ごとの式・条件ごとの式・MeSH・LLMの自由な式。origin と理由を付ける。
+    # 除外語(exclude_terms)は既定では検索式に入れない: "NOT" は関連する論文まで大量に落とす(試験で 1,928件 → 12件)。除外は採用基準で行う
     S, M, C, X = defn["subject_terms"], defn["method_terms"], defn["condition_terms"], defn["exclude_terms"]
     base = f"{orx(S)} AND {orx(M)}" if M else orx(S)
-    notx = f" AND NOT {orx(X)}" if X else ""
+    notx = f" AND NOT {orx(X)}" if (X and exclusions_in_queries) else ""
     out = [{"query": base + notx, "origin": "seed", "why": "core: all subject terms x all method terms"}]
     if len(S) > 1 or len(M) > 1:
         narrow = f"{orx(S[:1])}" + (f" AND {orx(M[:1])}" if M else "")
         out.append({"query": narrow + notx, "origin": "seed", "why": "narrow: first subject term x first method term"})
-    for c in C[:5]:
-        out.append({"query": f"{base} AND {orx([c])}" + notx, "origin": "seed", "why": f"condition: {c}"})
+    # 手法ごとの式は全ての手法語について作る(具体的な手法名は、少数でも関連率が高いことが多いため)
+    for m in M[:8]:
+        out.append({"query": f"{orx(S)} AND {orx([m])}" + notx, "origin": "seed", "why": f"method: {m}"})
+    if with_llm:
+        from app import questions
+        try:
+            for q in questions.queries_from_question(defn["question"])["queries"]:
+                out.append({"query": q["query"], "origin": "llm", "why": "free-form query written by the model from the question"})
+        except Exception:
+            pass
     if with_mesh:
         try:
             tr = pubmed.search(base, load_config()["search_end_date"])["translation"]
@@ -78,19 +87,22 @@ def candidates(defn, with_mesh=True, with_llm=True):
                 out.append({"query": f'"{m}"[MeSH Terms]' + (f" AND {orx(M)}" if M else "") + notx, "origin": "mesh", "why": f"MeSH term matched by PubMed: {m}"})
         except Exception:
             pass
-    if with_llm:
-        from app import questions
-        try:
-            for q in questions.queries_from_question(defn["question"])["queries"]:
-                out.append({"query": q["query"] + notx, "origin": "llm", "why": "free-form query written by the model from the question"})
-        except Exception:
-            pass
+    for c in C[:3]:
+        out.append({"query": f"{base} AND {orx([c])}" + notx, "origin": "seed", "why": f"condition: {c}"})
     seen, uniq = set(), []
     for c in out:
         if c["query"].lower() not in seen:
             seen.add(c["query"].lower())
             uniq.append(c)
     return uniq[:settings()["max_candidates"]]
+
+
+def relaxed_candidates(defn):
+    # 何も採用されなかったときの再挑戦用: 主題の語と手法/条件の語を1つずつ組み合わせた、条件の緩い式(最大8)
+    S, M, C = defn["subject_terms"], defn["method_terms"], defn["condition_terms"]
+    out = [{"query": f"{orx([s])} AND {orx([m])}", "origin": "seed", "why": f"relaxed: {s} x {m}"} for s in S[:3] for m in M[:3]]
+    out += [{"query": f"{orx(S[:2])} AND {orx([c])}", "origin": "seed", "why": f"relaxed: subject x condition {c}"} for c in C[:3]]
+    return out[:8]
 
 
 # ---------- 3. 試験(pilot) ----------
@@ -115,7 +127,7 @@ def evaluate(cand, judge, st=None):
     cfg = load_config()
     q = cand["query"]
     res = pubmed.search(q, cfg["search_end_date"])
-    row = {**cand, "count": res["count"], "ids": [], "precision": None, "sampled": 0, "included": 0, "status": None, "reason": None}
+    row = {**cand, "count": res["count"], "ids": [], "precision": None, "sampled": 0, "included": 0, "novelty": None, "status": None, "reason": None}
     if res["count"] < st["min_hits"]:
         return {**row, "status": "dropped", "reason": f"too narrow: {res['count']} hits (< {st['min_hits']})"}
     if res["count"] > cfg["max_hits_per_query"]:
@@ -175,6 +187,7 @@ def register(conn, topic_id, rows, run):
 def design(conn, topic_id, cands=None, judge_fn=None, origin=None):
     # 候補を評価して決定し、保存する。cands が無ければトピックの定義から作る。判定の関数は差し替えられる(テスト用)。表(辞書のリスト)を返す
     st = settings()
+    defn = None
     if cands is None:
         defn = json.loads(conn.execute("SELECT description FROM topics WHERE id=?", (topic_id,)).fetchone()["description"])
         cands = candidates(defn)
@@ -185,6 +198,13 @@ def design(conn, topic_id, cands=None, judge_fn=None, origin=None):
     rows = [evaluate(c, judge, st) for c in cands[:st["max_candidates"]]]
     decide(rows, union_of_kept(conn, topic_id), st)
     register(conn, topic_id, rows, run)
+    if defn and not any(r["status"] == "kept" for r in rows) and not conn.execute(
+            "SELECT 1 FROM queries WHERE topic_id=? AND (status IS NULL OR status='kept')", (topic_id,)).fetchone():
+        # 1つも採用されなかった: 条件を緩めた式で一度だけ再挑戦する(収集する式が0のまま進まないように)
+        more = [evaluate(c, judge, st) for c in relaxed_candidates(defn)]
+        decide(more, set(), st)
+        register(conn, topic_id, more, run)
+        rows += more
     return [{k: r[k] for k in ("query", "origin", "why", "count", "sampled", "included", "precision", "novelty", "status", "reason")} for r in rows]
 
 
@@ -228,4 +248,10 @@ def new_topic(conn, defn, criteria_text=None, profile_file=None):
     conn.commit()
     core = f"{orx(defn['subject_terms'])}" + (f" AND {orx(defn['method_terms'])}" if defn["method_terms"] else "")
     stages.setup_topic(conn, defn["topic_name"], [core], criteria_text, profile_file)
+    if defn["exclude_terms"] and not criteria_text:
+        cur = conn.execute("SELECT criteria FROM topics WHERE id=?", (tid,)).fetchone()["criteria"] or ""
+        note = "EXCLUDE also papers that are mainly about: " + "; ".join(defn["exclude_terms"]) + "."
+        if note not in cur:
+            conn.execute("UPDATE topics SET criteria=? WHERE id=?", (cur.rstrip() + "\n" + note, tid))
+            conn.commit()
     return tid

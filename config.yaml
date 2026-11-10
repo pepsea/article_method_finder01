@@ -17,7 +17,7 @@ query_design:                   # 検索語の設計・決定の基準(ステー
   min_novelty: 0.2              # 既に選んだ検索語がカバーしていない論文の割合がこれ未満なら重複として使わない
   max_total_papers: 4000        # 選んだ検索語が集める論文の合計の上限
   min_hits: 5                   # PubMedの件数がこれ未満は狭すぎる
-  max_candidates: 12            # 評価する候補の最大数
+  max_candidates: 20            # 評価する候補の最大数
 max_hits_per_query: 3000        # これを超える広すぎる検索語は取り込まない
 
 prompt_version: v1      # LLM 呼び出しごとに runs テーブルへ記録する
